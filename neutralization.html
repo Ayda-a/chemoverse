@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chemistry Simulator</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom, #0f172a, #1e293b);
+      color: white;
+      text-align: center;
+    }
+
+    h2 { margin-top: 20px; }
+
+    #controls {
+      margin: 15px;
+    }
+     
+
+    button {
+      background: #334155;
+      border: none;
+      color: white;
+      padding: 10px 16px;
+      margin: 5px;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #475569;
+      transform: scale(1.05);
+    }
+
+    #beaker {
+      width: 650px;
+      height: 420px;
+      margin: 20px auto;
+      border-radius: 20px;
+      border: 3px solid #94a3b8;
+      background: linear-gradient(to top, #38bdf8, #7dd3fc);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    .ion {
+      position: absolute;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+    }
+
+    .cation { background: #fb7185; }
+    .anion { background: #60a5fa; }
+    .product { background: #22c55e; }
+
+    .solid {
+      background: #facc15;
+      border-radius: 6px;
+      width: 36px;
+      height: 36px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>🧪 Neutralization Simulator</h1>
+<p>Choose an Acid and a Base, then mix!</p>
+
+<div id="controls">
+  <button onclick="addCompound('NaOH')">NaOH</button>
+  <button onclick="addCompound('HCl')">HCl</button>
+  <button onclick="addCompound('KOH')">KOH</button>
+  <button onclick="addCompound('HNO3')">HNO₃</button>
+  <button onclick="resetSim()">Reset</button>
+</div>
+
+<div id="beaker"></div>
+
+<script>
+const beaker = document.getElementById('beaker');
+let ions = [];
+
+const compounds = {
+  NaOH: ['Na+', 'OH-'],
+  KOH: ['K+', 'OH-'],
+  HCl: ['H+', 'Cl-'],
+  HNO3: ['H+', 'NO3-']
+};
+
+function createIon(label) {
+  const div = document.createElement('div');
+  div.className = 'ion ' + (label.includes('+') ? 'cation' : 'anion');
+  div.innerText = label;
+  div.style.left = Math.random() * 600 + 'px';
+  div.style.top = Math.random() * 350 + 'px';
+  beaker.appendChild(div);
+
+  ions.push({ el: div, label, solid: false });
+}
+
+function addCompound(name) {
+  compounds[name].forEach(createIon);
+}
+
+function resetSim() {
+  ions.forEach(i => i.el.remove());
+  ions = [];
+}
+
+function moveIons() {
+  ions.forEach(ion => {
+    let x = parseFloat(ion.el.style.left);
+    let y = parseFloat(ion.el.style.top);
+if (!ion.solid) {
+
+  // random motion
+  x += (Math.random() - 0.5) * 3;
+  y += (Math.random() - 0.5) * 3;
+
+  // attraction to opposite charges only
+  ions.forEach(other => {
+    if (ion === other || other.solid) return;
+
+    const ionPositive = ion.label.includes('+');
+    const ionNegative = ion.label.includes('-');
+    const otherPositive = other.label.includes('+');
+    const otherNegative = other.label.includes('-');
+
+    // Only attract if one is + and the other is -
+    if ((ionPositive && otherNegative) || (ionNegative && otherPositive)) {
+      let ox = parseFloat(other.el.style.left);
+      let oy = parseFloat(other.el.style.top);
+
+      x += (ox - x) * 0.003;
+      y += (oy - y) * 0.003;
+    }
+  });
+}
+
+    y = Math.min(380, y);
+
+    ion.el.style.left = Math.max(0, Math.min(610, x)) + 'px';
+    ion.el.style.top = y + 'px';
+  });
+
+  checkReactions();
+}
+
+function checkReactions() {
+  for (let i = 0; i < ions.length; i++) {
+    for (let j = i + 1; j < ions.length; j++) {
+
+      const a = ions[i];
+      const b = ions[j];
+
+      const ax = parseFloat(a.el.style.left);
+      const ay = parseFloat(a.el.style.top);
+      const bx = parseFloat(b.el.style.left);
+      const by = parseFloat(b.el.style.top);
+
+      const d = Math.sqrt((ax - bx)**2 + (ay - by)**2);
+
+      if (d > 60) continue;
+
+      // Neutralization
+      if ((a.label === 'H+' && b.label === 'OH-') ||
+          (a.label === 'OH-' && b.label === 'H+')) {
+        react(i, j, 'H2O', false);
+        return;
+      }
+
+      // Salt formation (solid-like)
+      if ((a.label === 'Na+' && b.label === 'Cl-') ||
+          (a.label === 'Cl-' && b.label === 'Na+')) {
+        react(i, j, 'NaCl', true);
+        return;
+      }
+    }
+  }
+}
+
+function react(i, j, product, isSolid) {
+  const a = ions[i];
+  const b = ions[j];
+
+  a.el.remove();
+  b.el.remove();
+
+  ions.splice(j, 1);
+  ions.splice(i, 1);
+  const div = document.createElement('div');
+  div.className = 'ion ' + (isSolid ? 'solid' : 'product');
+  div.innerText = product;
+  div.style.left = Math.random() * 600 + 'px';
+  div.style.top = Math.random() * 350 + 'px';
+
+  beaker.appendChild(div);
+
+  ions.push({ el: div, label: product, solid: isSolid });
+}
+
+setInterval(moveIons, 25);
+</script>
+<h2> Neutralization reaction</h2>
+<p><b>The reaction of an acid and a base to form water is called a neutralization reaction.</b></p>
+<p>When an acid and a base react, hydrogen ions from the acid (H+) and hydroxide ions from
+   the base (OH-) react in a 1:1 ratio to produce water. . At this time, if there are more
+   hydrogen ions than hydroxide ions, it is acidic, if hydrogen ions and hydroxide ions are 
+   the same, it is neutral, and if hydrogen ions are less than hydroxide ions, it is basic.
+   Therefore, the neutral point where the number of hydrogen ions and hydroxide ions are the
+   same is where the neutralization reaction takes place, and this point is called the neutralization 
+   point.
+</p>
+<button class="btn" onclick="goBack()">⬅ Back to Home</button>
+<script>
+function goBack() {
+    window.location.href = "bodypr.html";
+}
+</script>
+
+</body>
+</html>
