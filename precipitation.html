@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Precipitation Reaction Simulator</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+      background: linear-gradient(to bottom, #0f172a, #1e293b);
+      color: white;
+      text-align: center;
+  }
+  .button-container { margin: 20px; }
+  button {
+    margin: 5px; padding: 10px 15px; font-size: 16px;
+    border-radius: 8px; border: 1px solid #fff;
+    background-color: transparent; color: #fff; cursor: pointer;
+  }
+  #beaker {
+   width: 650px;
+      height: 420px;
+      margin: 20px auto;
+      border-radius: 20px;
+      border: 3px solid #94a3b8;
+      background: linear-gradient(to top, #38bdf8, #7dd3fc);
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  }
+  
+     .btn {
+            padding: 12px 25px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #38bdf8;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn:hover {
+            background: #0ea5e9;
+        }
+  .ion {
+    width: 26px; height: 26px; border-radius: 50%;
+    position: absolute; border: 2px solid red; background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: white; text-align: center;
+  }
+  .precipitate {
+    width: 34px; height: 34px; border-radius: 50%;
+    position: absolute; background-color: gold;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: bold; color: black;
+  }
+</style>
+</head>
+<body>
+<div class="button-container">
+  <button onclick="addCompound('Na2S')">Na2S</button>
+  <button onclick="addCompound('BaCl2')">BaCl2</button>
+  <button onclick="addCompound('CaCl2')">CaCl2</button>
+
+</div>
+<div id="beaker"></div>
+<script>
+const beaker = document.getElementById('beaker');
+let ions = [];
+
+function addCompound(compound) {
+  let dissociated = [];
+  if(compound === 'Na2S') {
+    dissociated = [
+      {type:'Na+', color:'#3B82F6'}, {type:'Na+', color:'#3B82F6'},
+      {type:'S2-', color:'#FACC15'}
+    ];
+  } else if(compound === 'BaCl2') {
+    dissociated = [
+      {type:'Ba2+', color:'#22C55E'},
+      {type:'Cl-', color:'#EC4899'}, {type:'Cl-', color:'#EC4899'}
+    ];
+  } else if(compound === 'CaCl2') {
+    dissociated = [
+      {type:'Ca2+', color:'#06B6D4'},
+      {type:'Cl-', color:'#EC4899'}, {type:'Cl-', color:'#EC4899'}
+    ];
+  }
+
+  dissociated.forEach(ionData => {
+    const ion = document.createElement('div');
+    ion.classList.add('ion');
+    ion.style.borderColor = ionData.color;
+    ion.dataset.type = ionData.type;
+    ion.innerText = ionData.type;
+
+    ion.style.top = Math.random() * (beaker.clientHeight - 30) + 'px';
+    ion.style.left = Math.random() * (beaker.clientWidth - 30) + 'px';
+
+    beaker.appendChild(ion);
+    ions.push(ion);
+  });
+}
+
+function getNeutralFormula(a, b) {
+  // crude combine: remove charges and join symbols
+  const clean = (t) => t.replace(/[0-9\+\-]/g, '');
+  return clean(a) + clean(b);
+}
+
+function moveIons() {
+  ions.forEach(ion => {
+    const x = parseFloat(ion.style.left);
+    const y = parseFloat(ion.style.top);
+
+    ion.style.left = (x + (Math.random() - 0.5) * 6) + 'px';
+    ion.style.top = (y + (Math.random() - 0.5) * 6) + 'px';
+
+    ions.forEach(other => {
+      if(ion === other) return;
+
+      if(ion.dataset.type !== other.dataset.type &&
+         Math.abs(x - parseFloat(other.style.left)) < 15 &&
+         Math.abs(y - parseFloat(other.style.top)) < 15) {
+
+        const label = getNeutralFormula(ion.dataset.type, other.dataset.type);
+
+        createPrecipitate(
+          (x + parseFloat(other.style.left))/2,
+          beaker.clientHeight - 34,
+          label
+        );
+
+        ion.remove();
+        other.remove();
+        ions = ions.filter(i => i !== ion && i !== other);
+      }
+    });
+  });
+
+  requestAnimationFrame(moveIons);
+}
+
+function createPrecipitate(x, y, label) {
+  const p = document.createElement('div');
+  p.classList.add('precipitate');
+  p.style.left = x + 'px';
+  p.style.top = y + 'px';
+  p.innerText = label; // label inside salt
+  beaker.appendChild(p);
+}
+moveIons();
+
+function goBack() {
+    window.location.href = "bodypr.html";
+}
+function neutral(){
+ window.location.href="neutralization.html"
+}
+</script>
+<h2>precipitation reaction</h2>
+<p>A precipitation reaction is a type of reaction when two solutions react to form an insoluble
+    solid (ionic salt)
+A lot of ionic compounds dissolve in water and exist as individual ions but when two ions
+find each other forming an insoluble compound, they suddenly combined and fall to the floor.
+
+Once the sediment is made, it becomes an irreversible reaction because it is hard to ionize and dissolve again.
+The sediment generation reaction can be used to determine the types of ions in an unknown solution.
+</p>
+<button class="btn" onclick="goBack()">⬅ Back to Home</button>
+<script>
+function goBack() {
+    window.location.href = "bodypr.html";}
+	</script>
+</body>
+</html>
