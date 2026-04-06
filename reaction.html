@@ -1,22 +1,73 @@
 <!DOCTYPE html>
-<html>
-    <head></head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Reaction Simulator</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            background: #0f172a;
+            color: white;
+            text-align: center;
+            padding: 50px;
+        }
+
+        h1 {
+            font-size: 40px;
+        }
+
+        .btn {
+            padding: 12px 25px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #38bdf8;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn:hover {
+            background: #0ea5e9;
+        }
+
+        .box {
+            margin-top: 30px;
+            padding: 20px;
+            background: #1e293b;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+
 <body>
-<section class="features">
-  <div class="card">
-    <h3>1️⃣ Choose Chemicals</h3>
-    <p>Select reactants from our database.</p>
-  </div>
 
-  <div class="card">
-    <h3>2️⃣ Simulate Reaction</h3>
-    <p>Run experiments safely in a virtual lab.</p>
-  </div>
+<h1>🧪 Reaction Simulator</h1>
+<p>Welcome! Start mixing chemicals below.</p>
 
-  <div class="card">
-    <h3>3️⃣ Analyze Results</h3>
-    <p>Get equations, products, and properties instantly.</p>
-  </div>
-</section>
+<!-- Buttons -->
+<button class="btn" onclick="neutral('neutralization')">Neutralization</button>
+<button class="btn" onclick="show('equilibrium')">Equilibrium</button>
+<button class="btn" onclick="show('definite')">Law of Definite Proportion</button>
+<button class="btn" onclick="reveal('precipitation')">Precipitation</button>
+<button class="btn" onclick="show('rate')">Reaction Rate</button>
+<button class="btn" onclick="show('lechatelier')">Le Chatelier</button>
+<button class="btn" onclick="goBack()">⬅ Back to Home</button>
+<script>
+
+function goBack() {
+    window.location.href = "bodypr.html";
+}
+function neutral(){
+ window.location.href="neutralization.html"
+
+}
+function reveal(){
+   window.location.href="precipitation.html" 
+}
+
+
+</script>
+
 </body>
 </html>
