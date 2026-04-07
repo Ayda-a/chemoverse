@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dynamic Equilibrium Simulator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+          
+        .btn {
+            padding: 12px 25px;
+            margin: 10px;
+            border: none;
+            border-radius: 8px;
+            background: #38bdf8;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .btn:hover {
+            background: #0ea5e9;
+        }
+        body { font-family: sans-serif; background:  #0f172a; color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        .container { background:  #0f172a; padding: 25px; border-radius: 15px; width: 600px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        #canvasContainer { border: 10px solid #fff; background: #6fe3d9; border-radius: 10px; cursor: crosshair; position: relative; }
+        canvas { display: block; }
+        #chartContainer { width: 100%; height: 200px; margin-top: 20px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 8px; }
+        .controls { display: flex; gap: 15px; justify-content: center; margin-top: 20px; align-items: center; }
+        .formula { font-size: 1.5rem; font-weight: bold; margin: 15px 0; text-align: center; }
+        button { padding: 10px 20px; font-weight: bold; cursor: pointer; border: none; border-radius: 5px; }
+        .pause-btn { background: #f1c40f; color: #000; }
+        .reset-btn { background: #ecf0f1; color: #333; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2 style="text-align:center; margin-top:0;">Equilibrium: 2 Red ⇌ 1 Blue</h2>
+    
+    <div id="canvasContainer">
+        <canvas id="simCanvas" width="750" height="350"></canvas>
+    </div>
+
+    <div id="chartContainer">
+        <canvas id="kChart"></canvas>
+    </div>
+
+    <div class="formula">
+        K = [Blue] / [Red]² = <span id="calcDisplay">0 / 0 = 0</span>
+    </div>
+
+    <div class="controls">
+        <label><input type="checkbox" id="naturalMode" checked> Natural Reactions</label>
+        <button class="pause-btn" id="pauseBtn">FREEZE MOTION</button>
+        <button class="reset-btn" onclick="resetSim()">RESET</button>
+    </div>
+</div>
+
+<script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx = canvas.getContext('2d');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const naturalMode = document.getElementById('naturalMode');
+    const calcDisplay = document.getElementById('calcDisplay');
+
+    let particles = [];
+    let isPaused = false;
+    const RADIUS = 15;
+    const SPEED = 5;
+
+    class Particle {
+        constructor(type, x, y) {
+            this.type = type;
+            this.x = x || RADIUS + Math.random() * (canvas.width - RADIUS * 2);
+            this.y = y || RADIUS + Math.random() * (canvas.height - RADIUS * 2);
+            const angle = Math.random() * Math.PI * 2;
+            this.vx = Math.cos(angle) * SPEED;
+            this.vy = Math.sin(angle) * SPEED;
+            this.flash = 0; // For visual feedback
+        }
+
+        draw() {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, RADIUS, 0, Math.PI * 2);
+            // If flashing, make it white; otherwise use red/blue
+            if (this.flash > 0) {
+                ctx.fillStyle = "white";
+                this.flash--;
+            } else {
+                ctx.fillStyle = this.type === 'red' ? '#e74c3c' : '#3498db';
+            }
+            ctx.fill();
+            ctx.strokeStyle = "rgba(255,255,255,0.5)";
+            ctx.stroke();
+        }
+
+        update() {
+            if (isPaused) return;
+            this.x += this.vx;
+            this.y += this.vy;
+            if (this.x <= RADIUS || this.x >= canvas.width - RADIUS) this.vx *= -1;
+            if (this.y <= RADIUS || this.y >= canvas.height - RADIUS) this.vy *= -1;
+        }
+    }
+
+    function resetSim() {
+        particles = [];
+        for (let i = 0; i < 16; i++) particles.push(new Particle('red'));
+        for (let i = 0; i < 2; i++) particles.push(new Particle('blue'));
+    }
+
+    // Freeze Toggle
+    pauseBtn.onclick = () => {
+        isPaused = !isPaused;
+        pauseBtn.innerText = isPaused ? "RESUME MOTION" : "FREEZE MOTION";
+        pauseBtn.style.background = isPaused ? "#2ecc71" : "#f1c40f";
+    };
+    // Clicking to React Manually
+    canvas.addEventListener('mousedown', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mx = e.clientX - rect.left;
+        const my = e.clientY - rect.top;
+
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            if (Math.hypot(p.x - mx, p.y - my) < RADIUS * 1.5) {
+                if (p.type === 'red') {
+                    // Try to find another red to combine with
+                    let otherRed = particles.find((op, idx) => op.type === 'red' && idx !== i);
+                    if (otherRed) {
+                        p.type = 'blue';
+                        particles.splice(particles.indexOf(otherRed), 1);
+                    }
+                } else {
+                    // Split Blue into 2 Reds
+                    p.type = 'red';
+                    particles.push(new Particle('red', p.x + 10, p.y + 10));
+                }
+                break;
+            }
+        }
+    });
+
+    // Chart.js Setup
+    const chartCtx = document.getElementById('kChart').getContext('2d');
+    const kChart = new Chart(chartCtx, {
+        type: 'line',
+        data: { labels: Array(50).fill(''), datasets: [{ 
+            label: 'K Value', data: [], borderColor: '#6fe3d9', stepped: true, pointRadius: 0, fill: false 
+        }]},
+        options: { animation: false, scales: { y: { min: 0, max: 0.5, ticks: { color: '#aaa' } } }, plugins: { legend: { display: false } } }
+    });
+
+    function loop() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        let red = 0, blue = 0;
+
+        particles.forEach(p => {
+            p.update();
+            p.draw();
+            if (p.type === 'red') red++; else blue++;
+        });
+
+        // Natural Reaction Logic
+        if (naturalMode.checked && !isPaused) {
+            // Forward: 2 Red -> 1 Blue
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    let p1 = particles[i], p2 = particles[j];
+                    if (p1.type === 'red' && p2.type === 'red' && Math.hypot(p1.x - p2.x, p1.y - p2.y) < RADIUS * 2) {
+                        if (Math.random() < 0.05) {
+                            particles.splice(j, 1);
+                            p1.type = 'blue';
+                            p1.flash = 10; 
+                        }
+                    }
+                }
+            }
+            // Reverse: 1 Blue -> 2 Red
+            particles.forEach(p => {
+                if (p.type === 'blue' && Math.random() < 0.005) {
+                    p.type = 'red';
+                    p.flash = 10;
+                    let newP = new Particle('red', p.x, p.y);
+                    newP.flash = 10;
+                    particles.push(newP);
+                }
+            });
+        }
+
+        // Calculation using the "Bulletproof" string method
+        const k = red > 0 ? (blue / (red * red)).toFixed(4) : 0;
+        calcDisplay.innerText = blue + " / (" + red + "²" + ") = " + k;
+
+        if (Math.random() > 0.8) {
+            kChart.data.datasets[0].data.push(k);
+            if (kChart.data.datasets[0].data.length > 50) kChart.data.datasets[0].data.shift();
+            kChart.update();
+        }
+
+        requestAnimationFrame(loop);
+    }
+
+    resetSim();
+    loop();
+</script>
+<h2 align="center">chemical equilibrium</h2>
+<p>In a chemical reaction, chemical equilibrium is the state in which both reactants and products are present in concentrations that have no further tendency to change with time.<br>
+    In an equilibrium state at a constant temperature, the ratio of the reactant’s concentration product to the product’s concentration product is always constant. This is called the law of chemical equilibrium.</p>
+    <p>In general, the equilibrium constant ‘K’ value is the product’s ratio to the reactant.<br>
+        Assuming that the following reaction is in equilibrium,</p>
+<p>
+    <span class="MJX_Assistive_MathML MJX_Assistive_MathML_Block" role="presentation"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mi>a</mi><mi>A</mi><mo>+</mo><mi>b</mi><mi>B</mi><mo class="MJX-variant" stretchy="false">⇌</mo><mi>c</mi><mi>C</mi><mo>+</mo><mi>d</mi><mi>D</mi></math></span></span></span>
+    <script type="math/tex; mode=display" id="MathJax-Element-2"> aA+bB\rightleftharpoons cC+dD </script></p>
+          
+    <p>The forward reaction speed and the backward reaction speed are the same.<br>
+        And the equilibrium constant K can be obtained as follows.</p>
+    <p><span class="MathJax_Preview" style="color: inherit;"></span><span class="mjx-chtml MJXc-display" style="text-align: center;">
+        <span id="MathJax-Element-3-Frame" class="mjx-chtml MathJax_CHTML" tabindex="0" style="font-size: 113%; text-align: center; position: relative;" data-mathml="&lt;math xmlns=&quot;http://www.w3.org/1998/Math/MathML&quot; display=&quot;block&quot;&gt;&lt;mi&gt;k&lt;/mi&gt;&lt;mo&gt;=&lt;/mo&gt;&lt;mfrac&gt;&lt;mrow&gt;&lt;msup&gt;&lt;mrow class=&quot;MJX-TeXAtom-ORD&quot;&gt;&lt;mo stretchy=&quot;false&quot;&gt;[&lt;/mo&gt;&lt;mi&gt;C&lt;/mi&gt;&lt;mo stretchy=&quot;false&quot;&gt;]&lt;/mo&gt;&lt;/mrow&gt;&lt;mrow class=&quot;MJX-TeXAtom-ORD&quot;&gt;&lt;mi&gt;c&lt;/mi&gt;&lt;/mrow&gt;&lt;/msup&gt;&lt;msup&gt;&lt;mrow class=&quot;MJX-TeXAtom-ORD&quot;&gt;&lt;mo stretchy=&quot;false&quot;&gt;[&lt;/mo&gt;&lt;mi&gt;D&lt;/mi&gt;&lt;mo stretchy=&quot;false&quot;&gt;]&lt;/mo&gt;&lt;/mrow&gt;&lt;mrow class=&quot;MJX-TeXAtom-ORD&quot;&gt;&lt;mi&gt;d&lt;/mi&gt;&lt;/mrow&gt;&lt;/msup&gt;&lt;/mrow&gt;&lt;mrow&gt;&lt;msup&gt;&lt;mrow class=&quot;MJX-TeXAtom-ORD&quot;&gt;&lt;mo stretchy=&quot;false&quot;&gt;[&lt;/mo&gt;&lt;mi&gt;A&lt;/mi&gt;&lt;mo stretchy=&quot;false&quot;&gt;]&lt;/mo&gt;&lt;/mrow&gt;&lt;mrow class=&quot;MJX-TeXAtom-ORD&quot;&gt;&lt;mi&gt;a&lt;/mi&gt;&lt;/mrow&gt;&lt;/msup&gt;&lt;msup&gt;&lt;mrow class=&quot;MJX-TeXAtom-ORD&quot;&gt;&lt;mo stretchy=&quot;false&quot;&gt;[&lt;/mo&gt;&lt;mi&gt;B&lt;/mi&gt;&lt;mo stretchy=&quot;false&quot;&gt;]&lt;/mo&gt;&lt;/mrow&gt;&lt;mrow class=&quot;MJX-TeXAtom-ORD&quot;&gt;&lt;mi&gt;b&lt;/mi&gt;&lt;/mrow&gt;&lt;/msup&gt;&lt;/mrow&gt;&lt;/mfrac&gt;&lt;/math&gt;" role="presentation">
+        <span id="MJXc-Node-17" class="mjx-math" aria-hidden="true"><span id="MJXc-Node-18" class="mjx-mrow"><span id="MJXc-Node-19" class="mjx-mi">
+        <span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.471em; padding-bottom: 0.263em;">k</span></span>
+        <span id="MJXc-Node-20" class="mjx-mo MJXc-space3"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.055em; padding-bottom: 0.315em;">=</span></span>
+        <span id="MJXc-Node-21" class="mjx-mfrac MJXc-space3"><span class="mjx-box MJXc-stacked" style="width: 3.647em; padding: 0px 0.12em;">
+        <span class="mjx-numerator" style="width: 3.647em; top: -1.758em;"><span id="MJXc-Node-22" class="mjx-mrow"><span id="MJXc-Node-23" class="mjx-msubsup"><span class="mjx-base"><span id="MJXc-Node-24" class="mjx-texatom">
+        <span id="MJXc-Node-25" class="mjx-mrow"><span id="MJXc-Node-26" class="mjx-mo"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.471em; padding-bottom: 0.575em;">[</span></span><span id="MJXc-Node-27" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.471em; padding-bottom: 0.315em; padding-right: 0.045em;">C</span></span><span id="MJXc-Node-28" class="mjx-mo"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.471em; padding-bottom: 0.575em;">]</span></span></span></span></span><span class="mjx-sup" style="font-size: 70.7%; vertical-align: 0.71em; padding-left: 0px; padding-right: 0.071em;"><span id="MJXc-Node-29" class="mjx-texatom" style=""><span id="MJXc-Node-30" class="mjx-mrow"><span id="MJXc-Node-31" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.211em; padding-bottom: 0.263em;">c</span></span></span></span></span></span><span id="MJXc-Node-32" class="mjx-msubsup"><span class="mjx-base"><span id="MJXc-Node-33" class="mjx-texatom"><span id="MJXc-Node-34" class="mjx-mrow"><span id="MJXc-Node-35" class="mjx-mo"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.471em; padding-bottom: 0.575em;">[</span></span><span id="MJXc-Node-36" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.471em; padding-bottom: 0.263em;">D</span></span><span id="MJXc-Node-37" class="mjx-mo"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.471em; padding-bottom: 0.575em;">]</span></span></span></span></span><span class="mjx-sup" style="font-size: 70.7%; vertical-align: 0.71em; padding-left: 0px; padding-right: 0.071em;"><span id="MJXc-Node-38" class="mjx-texatom" style=""><span id="MJXc-Node-39" class="mjx-mrow"><span id="MJXc-Node-40" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.471em; padding-bottom: 0.263em; padding-right: 0.003em;">d</span></span></span></span></span></span></span></span><span class="mjx-denominator" style="width: 3.647em; bottom: -1.258em;"><span id="MJXc-Node-41" class="mjx-mrow"><span id="MJXc-Node-42" class="mjx-msubsup"><span class="mjx-base"><span id="MJXc-Node-43" class="mjx-texatom"><span id="MJXc-Node-44" class="mjx-mrow"><span id="MJXc-Node-45" class="mjx-mo"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.471em; padding-bottom: 0.575em;">[</span></span><span id="MJXc-Node-46" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.471em; padding-bottom: 0.263em;">A</span></span><span id="MJXc-Node-47" class="mjx-mo"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.471em; padding-bottom: 0.575em;">]</span></span></span></span></span><span class="mjx-sup" style="font-size: 70.7%; vertical-align: 0.71em; padding-left: 0px; padding-right: 0.071em;"><span id="MJXc-Node-48" class="mjx-texatom" style=""><span id="MJXc-Node-49" class="mjx-mrow"><span id="MJXc-Node-50" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.211em; padding-bottom: 0.263em;">a</span></span></span></span></span></span><span id="MJXc-Node-51" class="mjx-msubsup"><span class="mjx-base"><span id="MJXc-Node-52" class="mjx-texatom"><span id="MJXc-Node-53" class="mjx-mrow"><span id="MJXc-Node-54" class="mjx-mo"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.471em; padding-bottom: 0.575em;">[</span></span><span id="MJXc-Node-55" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.471em; padding-bottom: 0.263em;">B</span></span><span id="MJXc-Node-56" class="mjx-mo"><span class="mjx-char MJXc-TeX-main-R" style="padding-top: 0.471em; padding-bottom: 0.575em;">]</span></span></span></span></span><span class="mjx-sup" style="font-size: 70.7%; vertical-align: 0.71em; padding-left: 0px; padding-right: 0.071em;"><span id="MJXc-Node-57" class="mjx-texatom" style=""><span id="MJXc-Node-58" class="mjx-mrow"><span id="MJXc-Node-59" class="mjx-mi"><span class="mjx-char MJXc-TeX-math-I" style="padding-top: 0.471em; padding-bottom: 0.263em;">b</span></span></span></span></span></span></span></span><span class="mjx-line" style="border-bottom: 1.3px solid; top: -0.283em; width: 3.647em;"></span></span><span class="mjx-vsize" style="height: 3.016em; vertical-align: -1.258em;"></span></span></span></span><span class="MJX_Assistive_MathML MJX_Assistive_MathML_Block" role="presentation"><math xmlns="http://www.w3.org/1998/Math/MathML" display="block"><mi>k</mi><mo>=</mo><mfrac><mrow><msup><mrow class="MJX-TeXAtom-ORD"><mo stretchy="false">[</mo><mi>C</mi><mo stretchy="false">]</mo></mrow><mrow class="MJX-TeXAtom-ORD"><mi>c</mi></mrow></msup><msup><mrow class="MJX-TeXAtom-ORD"><mo stretchy="false">[</mo><mi>D</mi><mo stretchy="false">]</mo></mrow><mrow class="MJX-TeXAtom-ORD"><mi>d</mi></mrow></msup></mrow><mrow><msup><mrow class="MJX-TeXAtom-ORD"><mo stretchy="false">[</mo><mi>A</mi><mo stretchy="false">]</mo></mrow><mrow class="MJX-TeXAtom-ORD"><mi>a</mi></mrow></msup><msup><mrow class="MJX-TeXAtom-ORD"><mo stretchy="false">[</mo><mi>B</mi><mo stretchy="false">]</mo></mrow><mrow class="MJX-TeXAtom-ORD"><mi>b</mi></mrow></msup></mrow></mfrac></math></span></span></span><script type="math/tex; mode=display" id="MathJax-Element-3"> k=\frac { { [C] }^{ c }{ [D] }^{ d } }{ { [A] }^{ a }{ [B] }^{ b } }  </script></p>
+        <p>The equilibrium constant ‘K’ always shows a constant value at a constant temperature.</p>
+        <p>The K value tells you what chemical reaction is going to happen in the future.<br>
+            If the current value is less than the K value, a forward reaction will occur. On the contrary, if it is big, the backward reaction will happen.<br>
+            If the current value is equal to the K value, the equilibrium state is reached.</p>    
+
+
+
+
+
+
+
+
+
+<button class="btn" onclick="goBack()">⬅ Back to Home</button>
+<script>
+function goBack() {
+    window.location.href = "bodypr.html";
+}
+</script>
+</body>
+</html>
